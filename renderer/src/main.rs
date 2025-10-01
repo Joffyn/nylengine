@@ -1,10 +1,3 @@
-use vulkano::memory::allocator::StandardMemoryAllocator;
-use std::sync::Arc;
-pub mod pipeline;
-
-use crate::pipeline::instance::{self, create_device_and_queue};
-use crate::pipeline::vertex::{TestVertex};
-
 fn main() {
     //let (device, queue) = create_device_and_queue();
 
