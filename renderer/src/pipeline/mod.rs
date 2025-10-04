@@ -1,6 +1,7 @@
 pub mod instance;
 pub mod buffers;
 pub mod vertex;
+pub mod renderpass;
 
 #[cfg(test)]
 mod tests {
@@ -9,6 +10,7 @@ mod tests {
     use crate::pipeline::buffers::{self, create_vertex_buffer};
     use crate::pipeline::instance::DEVICE_CONTEXT;
     use crate::pipeline::vertex::TestVertex;
+    use crate::pipeline::renderpass::{self, create_render_pass};
 
     #[test]
     fn vertex_test() 
@@ -38,6 +40,13 @@ mod tests {
             vert.pos = [rand::random_range(-0.5..0.5),rand::random_range(-0.5..0.5)];  
         }
         let vbuffer = create_vertex_buffer(memory_allocator.clone(), verts.to_vec());
+    }
+    #[test]
+    fn renderpass_test()
+    {
+        let (device, queue) = &*DEVICE_CONTEXT;
+        let pass =create_render_pass(device.clone());
+
     }
 
 }
