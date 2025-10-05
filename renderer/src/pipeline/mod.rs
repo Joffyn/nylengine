@@ -2,6 +2,8 @@ pub mod instance;
 pub mod buffers;
 pub mod vertex;
 pub mod renderpass;
+pub mod image;
+pub mod window;
 
 #[cfg(test)]
 mod tests {
@@ -11,6 +13,7 @@ mod tests {
     use crate::pipeline::instance::DEVICE_CONTEXT;
     use crate::pipeline::vertex::TestVertex;
     use crate::pipeline::renderpass::{self, create_render_pass};
+    use crate::pipeline::image::{self, create_image};
 
     #[test]
     fn vertex_test() 
@@ -45,8 +48,14 @@ mod tests {
     fn renderpass_test()
     {
         let (device, queue) = &*DEVICE_CONTEXT;
-        let pass =create_render_pass(device.clone());
-
+        let pass = create_render_pass(device.clone()).expect("Renderpass failed to be created");
+    }
+    #[test]
+    fn create_image_test()
+    {
+        let (device, queue) = &*DEVICE_CONTEXT;
+        let memory_allocator = Arc::new(StandardMemoryAllocator::new_default(device.clone()));
+        let image = create_image(memory_allocator).expect("Image failed to be created");
     }
 
 }
