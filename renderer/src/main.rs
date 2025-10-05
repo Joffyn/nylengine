@@ -13,7 +13,7 @@ fn main() {
     
     use crate::pipeline::window;
 
-    create_default_window();
+    let renderer = create_default_window();
 
 
 

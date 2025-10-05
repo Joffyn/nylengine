@@ -3,10 +3,11 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
+
 #[derive(Default)]
-struct Renderer
+pub struct Renderer
 {
-    window: Option<Window>,
+    pub window: Option<Window>,
 }
 
 impl ApplicationHandler for Renderer
@@ -28,12 +29,14 @@ impl ApplicationHandler for Renderer
 }
 
  
-pub fn create_default_window()
+pub fn create_default_window() -> Renderer
 {
     let event_loop = EventLoop::new().expect("Couldn't create eventloop");
     let mut renderer = Renderer::default();
     event_loop.set_control_flow(ControlFlow::Poll);
     event_loop.run_app(&mut renderer);
+    renderer
+
     //let def_attr = Window::default_attributes().with_title("Cool window");
     //event_loop.create_window(def_attr).expect("Couldn't create default window");
 }
