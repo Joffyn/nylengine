@@ -7,6 +7,7 @@ use winit::{
     event_loop::EventLoop,
     window::Window,
 };
+use std::sync::Arc;
 
 
 
@@ -36,10 +37,10 @@ use winit::{
 
 
  
-pub fn create_default_window()
+pub fn create_default_window() -> Arc<Window>
 {
     let event_loop = EventLoop::new();
-    let window = Window::new(&event_loop).expect("Couldn't create window!");
+    let window = Arc::new(Window::new(&event_loop).expect("Couldn't create window!"));
 
     event_loop.run(move |event, _, control_flow| 
     {
@@ -52,10 +53,11 @@ pub fn create_default_window()
                 println!("Window closing!");
                 control_flow.set_exit();
             },
-            Event::MainEventsCleared => { window.request_redraw();},
+            Event::MainEventsCleared => { window.clone().request_redraw();},
             _ => (),
         }
     });
+    window
 }
 
 

@@ -1,12 +1,15 @@
 use vulkano::VulkanLibrary;
 use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo};
-use vulkano::device::{Device, DeviceCreateInfo, Queue, QueueCreateInfo, QueueFlags, physical::PhysicalDevice};
+use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags};
 use vulkano::VulkanError;
 use vulkano::Validated;
+use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType};
+use vulkano::swapchain::Surface;
 use std::sync::Arc;
 use once_cell::sync::Lazy;
+
 #[allow(dead_code)]
-fn create_instance(lib: Arc<VulkanLibrary>) -> Result<Arc<Instance>, Validated<VulkanError>>
+pub fn create_instance(lib: Arc<VulkanLibrary>) -> Result<Arc<Instance>, Validated<VulkanError>>
 {
     Instance::new(
         lib,
@@ -16,16 +19,39 @@ fn create_instance(lib: Arc<VulkanLibrary>) -> Result<Arc<Instance>, Validated<V
         },
     )
 }
-#[allow(dead_code)]
-fn get_physical_device(instance: Arc<Instance>) -> Option<Arc<PhysicalDevice>>
+#[allow(unused)]
+pub fn get_default_physical_device(device_extensions: &DeviceExtensions, instance: Arc<Instance>, surface: Arc<Surface>)
+-> (Arc<PhysicalDevice>, u32)
 {
-    instance.enumerate_physical_devices()
-    .expect("Couldnt enumerate physical devices")
-    .next()
+    instance.clone()
+        .enumerate_physical_devices()
+        .expect("Could not enumerate devices")
+        .filter(|p| p.supported_extensions().contains(&device_extensions))
+        .filter_map(|p| 
+            {
+                p.queue_family_properties()
+                    .iter()
+                    .enumerate()
+                    .position(|(i, q)|
+                        {
+                            q.queue_flags.contains(QueueFlags::GRAPHICS) 
+                                && p.surface_support(i as u32, &surface.clone()).unwrap_or(false)
+                        })
+                    .map(|q| (p, q as u32))
+            })
+        .min_by_key(|(p, _)| match p.properties().device_type 
+            {
+                PhysicalDeviceType::DiscreteGpu => 0,
+                PhysicalDeviceType::IntegratedGpu => 1,
+                PhysicalDeviceType::VirtualGpu => 2,
+                PhysicalDeviceType::Cpu => 3,
+                _ => 4,
+            })
+        .expect("No device is available")
 }
 
 #[allow(dead_code)]
-fn get_queue_family_index(phys_device: Arc<PhysicalDevice>) -> Option<usize>
+pub fn get_queue_family_index(phys_device: Arc<PhysicalDevice>) -> Option<usize>
 {
     phys_device
     .queue_family_properties()
@@ -35,33 +61,24 @@ fn get_queue_family_index(phys_device: Arc<PhysicalDevice>) -> Option<usize>
 }
 
 #[allow(dead_code)]
-fn get_device(phys_device: Arc<PhysicalDevice>, qfi: u32) -> Result<
-(Arc<Device>, impl ExactSizeIterator<Item = Arc<Queue>>), Validated<VulkanError>>
+pub fn get_device(device_extensions: &DeviceExtensions, phys_device: Arc<PhysicalDevice>, qfi: u32)
+-> Result<(Arc<Device>, impl ExactSizeIterator<Item = Arc<Queue>>), Validated<VulkanError>>
 {
     Device::new(
-    phys_device, 
-    DeviceCreateInfo { queue_create_infos: vec![QueueCreateInfo {queue_family_index: qfi, ..Default::default()}], ..Default::default()},
+        phys_device.clone(), 
+        DeviceCreateInfo 
+        { 
+            queue_create_infos: vec![QueueCreateInfo 
+                {
+                    queue_family_index: qfi, ..Default::default()
+                }], 
+            enabled_extensions: *device_extensions , ..Default::default()
+        },
     )
 }
 
-//Maybe handle errors? Probably not neccessary in this case
-#[allow(dead_code)]
-fn create_device_and_queue() -> (Arc<Device>, Arc<Queue>)
-{
-    let library = VulkanLibrary::new().expect("no local Vulkan library/DLL");
-    let instance = create_instance(library).expect("No instance could be created");
-    let phys_device = get_physical_device(instance.clone()).expect("No physical graphics device was found");
-    let qfi = get_queue_family_index(phys_device.clone()).expect("No queue family supporting graphics was found") as u32;
-    let mut device_queue = get_device(phys_device.clone(), qfi).expect("Device could not be created");
-    (device_queue.0, device_queue.1.next().expect("Device queue was empty"))
-}
 
 
 
 
-#[allow(dead_code)]
-pub(crate) static DEVICE_CONTEXT: Lazy<(Arc<Device>, Arc<Queue>)> = Lazy::new(|| {
-    use crate::pipeline::instance::create_device_and_queue;
-    create_device_and_queue()
-});
 
