@@ -1,6 +1,10 @@
 use std::sync::Arc;
 use vulkano::instance::Instance;
-
+use vulkano::image::{ImageUsage, Image};
+use vulkano::swapchain::{Surface, Swapchain, SwapchainCreateInfo};
+use vulkano::device::{Device};
+use vulkano::device::physical::PhysicalDevice;
+use winit::window::Window;
 
 //#[allow(unused)]
 //fn filter_devices(instance: Arc<Instance>, surface: Arc<Surface>) -> (Arc<PhysicalDevice>, u32)
@@ -39,10 +43,32 @@ use vulkano::instance::Instance;
 //}
 
 #[allow(unused)]
-fn create_swapchain(instance: Arc<Instance>) {
-     instance
-    .enumerate_physical_devices()
-    .expect("could not enumerate devices")
-    .next()
-    .expect("no devices available");
+pub fn create_swapchain(phys_device: Arc<PhysicalDevice>, device: Arc<Device>, window: Arc<Window>, surface: Arc<Surface>)
+-> (Arc<Swapchain>, Vec<Arc<Image>>)
+{
+    let caps = phys_device
+        .surface_capabilities(&surface, Default::default())
+        .expect("Failed to get surface capabilities");
+
+    let dimensions = window.inner_size();
+    let composite_alpha = caps.supported_composite_alpha.into_iter().next().unwrap();
+    let image_format = phys_device
+        .surface_formats(&surface, Default::default())
+        .unwrap()[0]
+        .0;
+
+    Swapchain::new(
+        device.clone(),
+        surface.clone(),
+        SwapchainCreateInfo
+        {
+            min_image_count: caps.min_image_count + 1,
+            image_format,
+            image_extent: dimensions.into(),
+            image_usage: ImageUsage::COLOR_ATTACHMENT,
+            composite_alpha,
+            ..Default::default()
+        },
+    )
+    .expect("Failed to create swapchain")
 }
