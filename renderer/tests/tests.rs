@@ -7,7 +7,7 @@ mod tests {
     use renderer::pipeline::buffers::{self, create_vertex_buffer};
     use renderer::pipeline::instance::{create_instance, get_device, get_queue_family_index};
     use renderer::pipeline::vertex::TestVertex;
-    use renderer::pipeline::renderpass::{self, create_render_pass};
+    use renderer::pipeline::renderpass::{self, create_renderpass};
     use renderer::pipeline::image::{self, create_image};
     use renderer::pipeline::window::{self, create_default_window};
     use renderer::pipeline::surface::{self, create_surface};
@@ -48,7 +48,7 @@ mod tests {
     fn renderpass_test()
     {
         let (device, queue) = &*TEST_DEVICE_CONTEXT;
-        let pass = create_render_pass(device.clone()).expect("Renderpass failed to be created");
+        let pass = create_renderpass(device.clone()).expect("Renderpass failed to be created");
     }
     #[test]
     fn create_image_test()
