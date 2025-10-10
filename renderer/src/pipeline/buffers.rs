@@ -43,6 +43,7 @@ pub fn begin_commandbuffer_recording(queue: Arc<Queue>, device: Arc<Device>)
     )
 }
 
+
 //pub fn end_commandbuffer_recording(cmdbuffer_builder: AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>, gfxpipeline: ())
 //-> Result<Arc<PrimaryAutoCommandBuffer>, Validated<VulkanError>>
 //{

@@ -6,6 +6,7 @@ pub mod image;
 pub mod window;
 pub mod surface;
 pub mod swapchain;
+pub mod gfxpipeline;
 
 
 //#[cfg(test)]
