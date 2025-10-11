@@ -7,6 +7,7 @@ pub mod window;
 pub mod surface;
 pub mod swapchain;
 pub mod gfxpipeline;
+pub mod shaderloading;
 
 
 //#[cfg(test)]

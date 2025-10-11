@@ -4,6 +4,8 @@ pub mod common;
 mod tests {
     use std::sync::Arc;
     use vulkano::memory::allocator::StandardMemoryAllocator;
+    use vulkano::device::DeviceExtensions;
+    use vulkano::VulkanLibrary;
     use renderer::pipeline::buffers::{self, create_vertex_buffer};
     use renderer::pipeline::instance::{create_instance, get_device, get_queue_family_index};
     use renderer::pipeline::vertex::TestVertex;
@@ -73,10 +75,10 @@ mod tests {
             ..DeviceExtensions::empty()
         };
         let lib = VulkanLibrary::new().expect("no local Vulkan library/DLL");
-        let instance = create_instance(lib);
-        let phys_device = get_test_physical_device(instance.clone());
+        let instance = create_instance(lib).unwrap();
+        let phys_device = get_test_physical_device(instance.clone()).unwrap();
         let qfi = get_queue_family_index(phys_device.clone()).expect("No queue family supporting graphics was found") as u32;
-        let device = get_device(device_extensions, phys_device, qfi);
+        let (device, _) = get_device(&device_extensions, phys_device.clone(), qfi).unwrap();
         let window = create_default_window();
         let surface = create_surface(window.clone(), instance.clone());
         let (swapchain, _) = create_swapchain(phys_device, device, window, surface);
