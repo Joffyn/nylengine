@@ -49,7 +49,6 @@ pub fn end_renderpass(builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandB
     .expect("Couldn't end renderpass");
 }
 
-#[allow(unused)]
 pub fn create_renderpass(device: Arc<Device>) -> Result<Arc<RenderPass>, Validated<VulkanError>>
 {
     vulkano::single_pass_renderpass!(

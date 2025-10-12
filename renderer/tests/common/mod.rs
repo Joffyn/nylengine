@@ -15,7 +15,7 @@ pub fn get_test_physical_device(instance: Arc<Instance>) -> Option<Arc<PhysicalD
 fn create_test_device_and_queue() -> (Arc<Device>, Arc<Queue>)
 {
     let device_extensions = DeviceExtensions {
-        khr_swapchain: true,
+        khr_swapchain: false,
         ..DeviceExtensions::empty()
     };
 
