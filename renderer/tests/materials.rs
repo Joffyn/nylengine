@@ -27,7 +27,7 @@ mod tests {
         let vertspirv = compile_shader(ShaderKind::Vertex, vertpath).expect("Couldn't compile shader");
         let vertex = load_shader(vertspirv, device.clone()).expect("Couldn't load shader");
 
-        let fragpath = Path::new("shaders/testshader.vs");
+        let fragpath = Path::new("shaders/testshader.ps");
         let fragspirv = compile_shader(ShaderKind::Fragment, fragpath).expect("Couldn't compile shader");
         let frag = load_shader(fragspirv, device.clone()).expect("Couldn't load shader");
 
