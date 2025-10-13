@@ -12,14 +12,6 @@ static COMPILER_CONTEXT: Lazy<Compiler> = Lazy::new(|| {
     shaderc::Compiler::new().unwrap()
 });
 
-
-//#[derive(Debug, Display)]
-//pub enum ShaderType
-//{
-//    Vertex,
-//    Fragment,
-//}
-
 pub fn compile_shader(shaderkind: ShaderKind, path: &Path) -> Result<Vec<u32>, Box<dyn std::error::Error>>
 {
     let contents = std::fs::read_to_string(path)?;

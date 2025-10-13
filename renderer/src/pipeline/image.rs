@@ -6,15 +6,14 @@ use vulkano::VulkanError;
 use std::sync::Arc;
 
 
-pub fn create_image(malloc: Arc<StandardMemoryAllocator>) -> Result<Arc<Image>, Validated<AllocateImageError>>
+pub fn create_image(malloc: Arc<StandardMemoryAllocator>, width: u32, height: u32) -> Result<Arc<Image>, Validated<AllocateImageError>>
 {
-
     Image::new(
         malloc.clone(),
         ImageCreateInfo {
             image_type: ImageType::Dim2d,
             format: Format::R8G8B8A8_UNORM,
-            extent: [1024, 1024, 1],
+            extent: [width, height, 1],
             usage: ImageUsage::TRANSFER_DST | ImageUsage::TRANSFER_SRC,
             ..Default::default()
         },
@@ -24,3 +23,4 @@ pub fn create_image(malloc: Arc<StandardMemoryAllocator>) -> Result<Arc<Image>, 
         },
     )
 }
+

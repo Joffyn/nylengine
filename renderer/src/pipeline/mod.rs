@@ -8,6 +8,10 @@ pub mod surface;
 pub mod swapchain;
 pub mod gfxpipeline;
 pub mod shaderloading;
+pub mod commandbuffer;
+pub mod framebuffer;
+pub mod prelude;
+
 
 
 //#[cfg(test)]

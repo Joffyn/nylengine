@@ -26,9 +26,9 @@ pub fn begin_renderpass(
                 contents: SubpassContents::Inline,
                 ..Default::default()
             },
-        ).expect("Couldn't create renderpass")
-        .bind_pipeline_graphics(pipeline.clone())
-        .expect("Failed to bind GraphicsPipeline");
+        ).expect("Couldn't create renderpass");
+        //.bind_pipeline_graphics(pipeline.clone())
+        //.expect("Failed to bind GraphicsPipeline");
 }
 
 pub fn basic_draw_call<T>(
