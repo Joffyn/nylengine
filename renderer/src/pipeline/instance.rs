@@ -76,9 +76,3 @@ pub fn get_device(device_extensions: &DeviceExtensions, phys_device: Arc<Physica
         },
     )
 }
-
-
-
-
-
-

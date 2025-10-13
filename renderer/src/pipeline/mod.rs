@@ -10,6 +10,7 @@ pub mod gfxpipeline;
 pub mod shaderloading;
 pub mod commandbuffer;
 pub mod framebuffer;
+pub mod init;
 pub mod prelude;
 
 

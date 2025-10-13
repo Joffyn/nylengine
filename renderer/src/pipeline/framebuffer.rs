@@ -1,24 +1,24 @@
 use crate::pipeline::prelude::*;
 
 
-pub fn create_framebuffer(
-    renderpass: Arc<RenderPass>,
-    image: Arc<Image>)
-    -> Result<Arc<Framebuffer>, Validated<VulkanError>>
-{
-    let view = ImageView::new_default(image.clone())?;
+//pub fn create_framebuffer(
+//    renderpass: Arc<RenderPass>,
+//    image: Arc<Image>)
+//    -> Result<Arc<Framebuffer>, Validated<VulkanError>>
+//{
+//    let view = ImageView::new_default(image.clone())?;
+//
+//    Ok(Framebuffer::new(
+//        renderpass.clone(),
+//        FramebufferCreateInfo
+//        {
+//            attachments: vec![view],
+//            ..Default::default()
+//        },
+//    ))
+//}
 
-    Framebuffer::new(
-        renderpass.clone(),
-        FramebufferCreateInfo
-        {
-            attachments: vec![view],
-            ..Default::default()
-        },
-    )
-}
-
-fn get_framebuffers(
+pub fn get_framebuffers(
     images: &[Arc<Image>],
     render_pass: &Arc<RenderPass>,
 ) -> Vec<Arc<Framebuffer>> 

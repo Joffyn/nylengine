@@ -17,7 +17,7 @@ use std::fmt::Display;
 
 pub struct Material
 {
-    gfxpipeline: Arc<GraphicsPipeline>
+    pub gfxpipeline: Arc<GraphicsPipeline>
 }
 impl Material
 {
@@ -26,7 +26,7 @@ impl Material
         vertex_shader: &Arc<ShaderModule>,
         fragment_shader: &Arc<ShaderModule>,
         device: Arc<Device>,
-        renderpass: Arc<RenderPass>) -> Result<Material, Box<dyn std::error::Error>>
+        renderpass: Arc<RenderPass>) -> Result<Material, Validated<VulkanError>>
     where T : Vertex,
     {
         let vs_entry = vertex_shader.entry_point("main").unwrap();
@@ -42,7 +42,7 @@ impl Material
         let layout = PipelineLayout::new(
             device.clone(),
             PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
-                .into_pipeline_layout_create_info(device.clone())?)?;
+                .into_pipeline_layout_create_info(device.clone()).unwrap())?;
 
 
         let subpass = Subpass::from(renderpass.clone(), 0).unwrap();

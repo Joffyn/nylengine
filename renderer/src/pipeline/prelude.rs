@@ -1,6 +1,5 @@
 pub use vulkano::buffer::{Buffer, BufferCreateInfo, BufferUsage};
 pub use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter};
-pub use std::sync::Arc;
 pub use vulkano::memory::allocator::StandardMemoryAllocator;
 pub use vulkano::buffer::Subbuffer;
 pub use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, PrimaryCommandBufferAbstract,SubpassContents, PrimaryAutoCommandBuffer};
@@ -24,5 +23,18 @@ pub use vulkano::image::*;
 pub use vulkano::image::view::*;
 pub use vulkano::sync::*;
 pub use vulkano::*;
-pub use std::sync::*;
 pub use vulkano::VulkanError;
+//pub use shaderc::*;
+pub use std::path::*;
+pub use std::sync::*;
+
+#[derive(Debug, thiserror::Error)]
+pub enum RendererError
+{
+    #[error("Command buffer execution failed: {0}")]
+    CommandExec(#[from] vulkano::command_buffer::CommandBufferExecError),
+    #[error("Error with commandbuffer: {0}")]
+    VulkanError(#[from] vulkano::Validated<VulkanError>),
+    //#[error("Shader error: {0}")]
+    //ShaderError(#[from] shaderc::Error)
+}

@@ -11,6 +11,8 @@ use vulkano::pipeline::graphics::vertex_input::{Vertex, VertexBuffersCollection}
 use vulkano::buffer::Subbuffer;
 use std::sync::Arc;
 
+use crate::pipeline::gfxpipeline::Material;
+
 pub fn begin_renderpass(
     builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>, 
     framebuffer: &Arc<Framebuffer>,
@@ -33,14 +35,18 @@ pub fn begin_renderpass(
 
 pub fn basic_draw_call<T>(
     builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>, 
-    vertex_buffer: impl VertexBuffersCollection + std::clone::Clone,
-    vertex_count: u32)
+    vertex_buffer: Subbuffer<T>,
+    material: &Material
+    )
+    -> Result<(), Validated<VulkanError>>
 where T: Vertex,
 {
-    builder.bind_vertex_buffers(0, vertex_buffer.clone())
-    .expect("Couldn't bind vertex buffer")
-    .draw(vertex_count, 1, 0, 0)
-    .expect("Couldn't issue draw call");
+    let count = vertex_buffer.size();
+
+    let builder = builder.bind_pipeline_graphics(material.gfxpipeline.clone())?;
+    let builder = builder.bind_vertex_buffers(0, vertex_buffer.clone())?;
+    let builder = builder.draw(count as u32, 1, 0, 0)?;
+    Ok(())
 }
 pub fn end_renderpass(builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>)
 {
