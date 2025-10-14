@@ -35,7 +35,7 @@ pub fn begin_renderpass(
 
 pub fn basic_draw_call<T>(
     builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>, 
-    vertex_buffer: Subbuffer<T>,
+    vertex_buffer: &Subbuffer<[T]>,
     material: &Material
     )
     -> Result<(), Validated<VulkanError>>

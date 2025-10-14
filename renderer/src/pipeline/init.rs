@@ -1,19 +1,11 @@
 use crate::pipeline::{
-    buffers::create_vertex_buffer, 
-    //commandbuffer::{begin_commandbuffer_recording, end_commandbuffer_recording, execute_commandbuffer}, 
-    framebuffer::{self, get_framebuffers}, 
-    instance::{self, get_queue_family_index, get_device, create_instance, get_default_physical_device}, 
-    prelude::*, 
-    renderpass::{self, basic_draw_call, begin_renderpass, create_renderpass, end_renderpass}, 
-    surface::{self, create_surface}, 
-    vertex::*,
-    shaderloading::*,
-    gfxpipeline::*,
-    swapchain::{self, create_swapchain}, window::create_default_window};
+    buffers::{create_vertex_buffer, *}, commandbuffer::record_multiple_commandbuffers, framebuffer::{self, get_framebuffers}, gfxpipeline::*, instance::{self, create_instance, get_default_physical_device, get_device, get_queue_family_index}, prelude::*, renderpass::{self, basic_draw_call, begin_renderpass, create_renderpass, end_renderpass}, shaderloading::*, surface::{self, create_surface}, swapchain::{self, create_swapchain}, vertex::*, window::create_default_window};
+//use crate::pipeline::prelude::*;
+use shaderc::*;
 
 //pub fn init_renderer_basic_test() -> Result<(), Box<dyn std::error::Error>>
 //{
-//    let library = VulkanLibrary::new()?;
+//    let lib = VulkanLibrary::new()?;
 //    let instance = create_instance(lib)?;
 //    let window = create_default_window();
 //    let device_extensions = DeviceExtensions {
@@ -41,7 +33,7 @@ use crate::pipeline::{
 //        vert.pos = [rand::random_range(-0.5..0.5),rand::random_range(-0.5..0.5)];
 //    }  
 //
-//    let vtxbuffer = create_vertex_buffer(malloc.clone(), verts);
+//    let vertex_buffer = create_vertex_buffer(malloc.clone(), verts);
 //
 //    let vertpath = Path::new("shaders/testshader.vs");
 //    let vertspirv = compile_shader(ShaderKind::Vertex, vertpath)?;
@@ -58,17 +50,8 @@ use crate::pipeline::{
 //        renderpass)?;
 //
 //
-//    let builder = begin_commandbuffer_recording(queue.clone(), device.clone())?;
-//    begin_renderpass(&mut builder, framebuffer.clone(), mat.gfxpipeline.clone());
-//    basic_draw_call(&mut builder, vertex_buffer, &mat);
-//    end_renderpass(&mut builder);
-//    let cmdbuffer = end_commandbuffer_recording(builder)?;
-//
+//    let cmdbuffers = record_multiple_commandbuffers(&queue, &device, &framebuffers, &mat, &vertex_buffer)?;
 //    execute_commandbuffer(device.clone(), queue.clone(), cmdbuffer)?;
-//
-//    
-//
-//    //(device_queue.0, device_queue.1.next().expect("Device queue was empty"));
 //
 //    Ok(())
 //}
