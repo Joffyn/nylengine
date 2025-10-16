@@ -1,28 +1,43 @@
-use vulkano::shader::{ShaderModule, ShaderModuleCreateInfo};
-use vulkano::device::Device;
-use vulkano::{Validated, VulkanError};
 use std::fmt::Display;
-use shaderc::Compiler;
-use shaderc::ShaderKind;
 use once_cell::sync::Lazy;
 use std::sync::Arc;
 use std::path::Path;
+use std::process::Command;
 
-static COMPILER_CONTEXT: Lazy<Compiler> = Lazy::new(|| {
-    shaderc::Compiler::new().unwrap()
-});
-
-pub fn compile_shader(shaderkind: ShaderKind, path: &Path) -> Result<Vec<u32>, Box<dyn std::error::Error>>
+pub enum ShaderKind
 {
-    let contents = std::fs::read_to_string(path)?;
-    let compiler = &*COMPILER_CONTEXT;
-
-    let spirv = compiler.compile_into_spirv(&contents, shaderkind, path.to_str().unwrap(), "main",None)?;
-
-    Ok(spirv.as_binary().to_vec())
+    Vertex,
+    Pixel,
 }
-pub fn load_shader(spirv: Vec<u32>, device: Arc<Device>) -> Result<Arc<ShaderModule>, Validated<VulkanError>>
+
+pub fn compile_shader(shaderkind: ShaderKind, path: &str) -> Result<(), Box<dyn std::error::Error>>
 {
-    let createinfo = ShaderModuleCreateInfo::new(spirv.as_slice());
-    unsafe { ShaderModule::new(device.clone(), createinfo) }
+    let output_path = Path::new(path).with_extension("spv");
+    let shader = match shaderkind
+    {
+        ShaderKind::Vertex => "vs_6_0",
+        ShaderKind::Pixel => "ps_6_0",
+        _ => todo!(),
+    };
+    let status = Command::new("dxc")
+        .args([
+            "-T", shader,      // target: vertex shader (adjust per file)
+            "-E", "main",        // entry point
+            "-spirv",            // output SPIR-V
+            "-Fo", output_path.to_str().unwrap(),
+            path,
+        ])
+        .status()?;
+
+    if status.success() {
+        println!("✅ Compiled {path} -> {}", output_path.display());
+    } else {
+        eprintln!("❌ Failed to compile {path}");
+    }
+    Ok(())
 }
+//pub fn load_shader(spirv: Vec<u32>, device: Arc<Device>) -> Result<Arc<ShaderModule>, Validated<VulkanError>>
+//{
+//    let createinfo = ShaderModuleCreateInfo::new(spirv.as_slice());
+//    unsafe { ShaderModule::new(device.clone(), createinfo) }
+//}

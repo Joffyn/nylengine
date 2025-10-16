@@ -3,7 +3,6 @@ pub mod buffers;
 pub mod vertex;
 pub mod renderpass;
 pub mod image;
-pub mod window;
 pub mod surface;
 pub mod swapchain;
 pub mod gfxpipeline;

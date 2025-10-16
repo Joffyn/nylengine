@@ -1,78 +1,188 @@
-use vulkano::VulkanLibrary;
-use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo};
-use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags};
-use vulkano::VulkanError;
-use vulkano::Validated;
-use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType};
-use vulkano::swapchain::Surface;
 use std::sync::Arc;
-use once_cell::sync::Lazy;
+use wgpu::{Adapter, Device, Instance, Queue, RequestAdapterError, RequestDeviceError, SurfaceError};
+use winit::application::ApplicationHandler;
+use winit::event::WindowEvent;
+use winit::event_loop::ActiveEventLoop;
+use winit::window::{Window, WindowId};
 
-#[allow(dead_code)]
-pub fn create_instance(lib: Arc<VulkanLibrary>) -> Result<Arc<Instance>, Validated<VulkanError>>
+struct State
 {
-    Instance::new(
-        lib,
-        InstanceCreateInfo {
-            flags: InstanceCreateFlags::ENUMERATE_PORTABILITY,
-            ..Default::default()
-        },
-    )
+    window: Arc<Window>,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    size: winit::dpi::PhysicalSize<u32>,
+    surface: wgpu::Surface<'static>,
+    surface_format: wgpu::TextureFormat,
 }
-#[allow(unused)]
-pub fn get_default_physical_device(device_extensions: &DeviceExtensions, instance: Arc<Instance>, surface: Arc<Surface>)
--> (Arc<PhysicalDevice>, u32)
+impl State
 {
-    instance.clone()
-        .enumerate_physical_devices()
-        .expect("Could not enumerate devices")
-        .filter(|p| p.supported_extensions().contains(&device_extensions))
-        .filter_map(|p| 
+    async fn new(window: Arc<Window>) -> Result<State, Box<dyn std::error::Error>>
+    {
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
+        let adapter = get_default_adapter(&instance).await?;
+        let (device, queue) = get_device_queue(&adapter).await?;
+
+        let size = window.inner_size();
+
+        let surface = instance.create_surface(window.clone()).unwrap();
+        let cap = surface.get_capabilities(&adapter);
+        let surface_format = cap.formats[0];
+
+        let state = State
+        {
+            window,
+            device,
+            queue,
+            size,
+            surface,
+            surface_format,
+        };
+
+        // Configure surface for the first time
+        state.configure_surface();
+
+        Ok(state)
+    }
+
+    fn get_window(&self) -> &Window
+    {
+        &self.window
+    }
+
+    fn configure_surface(&self)
+    {
+        let surface_config = wgpu::SurfaceConfiguration
+        {
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+            format: self.surface_format,
+            // Request compatibility with the sRGB-format texture view we‘re going to create later.
+            view_formats: vec![self.surface_format.add_srgb_suffix()],
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            width: self.size.width,
+            height: self.size.height,
+            desired_maximum_frame_latency: 2,
+            present_mode: wgpu::PresentMode::AutoVsync,
+        };
+        self.surface.configure(&self.device, &surface_config);
+    }
+
+    fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>)
+    {
+        self.size = new_size;
+
+        // reconfigure the surface
+        self.configure_surface();
+    }
+
+    fn render(&mut self) -> Result<(), SurfaceError>
+    {
+        // Create texture view
+        let surface_texture = self
+            .surface
+            .get_current_texture()?;
+        let texture_view = surface_texture
+            .texture
+            .create_view(&wgpu::TextureViewDescriptor {
+                // Without add_srgb_suffix() the image we will be working with
+                // might not be "gamma correct".
+                format: Some(self.surface_format.add_srgb_suffix()),
+                ..Default::default()
+            });
+
+        // Renders a GREEN screen
+        let mut encoder = self.device.create_command_encoder(&Default::default());
+        // Create the renderpass which will clear the screen.
+        let renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: None,
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &texture_view,
+                depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+
+        // If you wanted to call any drawing commands, they would go here.
+
+        // End the renderpass.
+        drop(renderpass);
+
+        // Submit the command in the queue to execute
+        self.queue.submit([encoder.finish()]);
+        self.window.pre_present_notify();
+        surface_texture.present();
+        Ok(())
+    }
+}
+#[derive(Default)]
+pub struct App
+{
+    state: Option<State>,
+}
+
+impl ApplicationHandler for App
+{
+    fn resumed(&mut self, event_loop: &ActiveEventLoop)
+    {
+        // Create window object
+        let window = Arc::new(
+            event_loop
+                .create_window(Window::default_attributes())
+                .unwrap(),
+        );
+
+        let state = pollster::block_on(State::new(window.clone())).expect("Could't create state");
+        self.state = Some(state);
+
+        window.request_redraw();
+    }
+
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent)
+    {
+        let state = match &mut self.state
+        {
+            Some(canvas) => canvas,
+            None => return,
+        };
+        match event
+        {
+            WindowEvent::CloseRequested =>
             {
-                p.queue_family_properties()
-                    .iter()
-                    .enumerate()
-                    .position(|(i, q)|
-                        {
-                            q.queue_flags.contains(QueueFlags::GRAPHICS) 
-                                && p.surface_support(i as u32, &surface.clone()).unwrap_or(false)
-                        })
-                    .map(|q| (p, q as u32))
-            })
-        .min_by_key(|(p, _)| match p.properties().device_type 
+                println!("The close button was pressed; stopping");
+                event_loop.exit();
+            }
+            WindowEvent::RedrawRequested =>
             {
-                PhysicalDeviceType::DiscreteGpu => 0,
-                PhysicalDeviceType::IntegratedGpu => 1,
-                PhysicalDeviceType::VirtualGpu => 2,
-                PhysicalDeviceType::Cpu => 3,
-                _ => 4,
-            })
-        .expect("No device is available")
+                state.render();
+                // Emits a new redraw requested event.
+                state.get_window().request_redraw();
+            }
+            WindowEvent::Resized(size) =>
+            {
+                // Reconfigures the size of the surface. We do not re-render
+                // here as this event is always followed up by redraw request.
+                state.resize(size);
+            }
+            _ => (),
+        }
+    }
 }
-
-#[allow(dead_code)]
-pub fn get_queue_family_index(phys_device: Arc<PhysicalDevice>) -> Option<usize>
+async fn get_default_adapter(instance: &Instance)
+    -> Result<Adapter, RequestAdapterError>
 {
-    phys_device
-    .queue_family_properties()
-    .iter()
-    .enumerate()
-    .position(|(_qfi, qfp)| { qfp.queue_flags.contains(QueueFlags::GRAPHICS) })
+    instance
+        .request_adapter(&wgpu::RequestAdapterOptions::default())
+        .await
 }
-
-#[allow(dead_code)]
-pub fn get_device(device_extensions: &DeviceExtensions, phys_device: Arc<PhysicalDevice>, qfi: u32)
--> Result<(Arc<Device>, impl ExactSizeIterator<Item = Arc<Queue>>), Validated<VulkanError>>
+async fn get_device_queue(adapter: &Adapter) -> Result<(Device, Queue), RequestDeviceError>
 {
-    Device::new(
-        phys_device.clone(), 
-        DeviceCreateInfo 
-        { 
-            queue_create_infos: vec![QueueCreateInfo 
-                {
-                    queue_family_index: qfi, ..Default::default()
-                }], 
-            enabled_extensions: *device_extensions , ..Default::default()
-        },
-    )
+    adapter
+        .request_device(&wgpu::DeviceDescriptor::default())
+        .await
 }

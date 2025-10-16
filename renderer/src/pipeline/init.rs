@@ -1,5 +1,3 @@
-use crate::pipeline::{
-    buffers::{create_vertex_buffer, *}, commandbuffer::record_multiple_commandbuffers, framebuffer::{self, get_framebuffers}, gfxpipeline::*, instance::{self, create_instance, get_default_physical_device, get_device, get_queue_family_index}, prelude::*, renderpass::{self, basic_draw_call, begin_renderpass, create_renderpass, end_renderpass}, shaderloading::*, surface::{self, create_surface}, swapchain::{self, create_swapchain}, vertex::*, window::create_default_window};
 //use crate::pipeline::prelude::*;
 use shaderc::*;
 
@@ -28,10 +26,10 @@ use shaderc::*;
 //    let malloc = Arc::new(StandardMemoryAllocator::new_default(device.clone()));
 //
 //    let mut verts = [TestVertex{ pos: [0f32,0f32]}; 3];
-//    for vert in &mut verts 
-//    { 
+//    for vert in &mut verts
+//    {
 //        vert.pos = [rand::random_range(-0.5..0.5),rand::random_range(-0.5..0.5)];
-//    }  
+//    }
 //
 //    let vertex_buffer = create_vertex_buffer(malloc.clone(), verts);
 //
