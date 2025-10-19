@@ -1,5 +1,40 @@
 use std::sync::Arc;
+use wgpu::{CommandEncoder, RenderPass, TextureView};
+use crate::pipeline::model::Model;
+use crate::pipeline::shapes::create_triangle;
 //use crate::pipeline::gfxpipeline::Material;
+
+pub fn basic_draw_call(render_pass: &mut RenderPass, model: &Model)
+{
+render_pass.set_pipeline(model.base_pipeline());
+render_pass.set_vertex_buffer(0, model.vertex_buffer.slice(..));
+render_pass.set_index_buffer(model.index_buffer.slice(..), wgpu::IndexFormat::Uint16); // 1.
+render_pass.draw_indexed(0..model.index_buffer.size() as u32, 0, 0..1); // 2.
+}
+
+pub fn main_pass(cmd_encoder: &mut CommandEncoder, texture_view: &TextureView)
+{
+    //let render_pass = cmd_encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+    //    label: None,
+    //    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+    //        view: &texture_view,
+    //        depth_slice: None,
+    //        resolve_target: None,
+    //        ops: wgpu::Operations {
+    //            load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+    //            store: wgpu::StoreOp::Store,
+    //        },
+    //    })],
+    //    depth_stencil_attachment: None,
+    //    timestamp_writes: None,
+    //    occlusion_query_set: None,
+    //});
+    //basic_draw_call(&mut render_pass, create_triangle())
+    //
+
+
+    //drop(render_pass);
+}
 
 //pub fn begin_renderpass(
 //    builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>,

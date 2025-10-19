@@ -1,15 +1,19 @@
 use std::sync::Arc;
-use wgpu::{Adapter, Device, Instance, Queue, RequestAdapterError, RequestDeviceError, SurfaceError};
+use wgpu::{Adapter, Device, Instance, Queue, RequestAdapterError, RequestDeviceError, SurfaceConfiguration, SurfaceError, TextureUsages};
+use wgpu::util::DeviceExt;
 use winit::application::ApplicationHandler;
 use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowId};
+use crate::pipeline::renderpass::basic_draw_call;
+use crate::pipeline::shapes::create_triangle;
 
 struct State
 {
     window: Arc<Window>,
     device: wgpu::Device,
     queue: wgpu::Queue,
+    config: SurfaceConfiguration,
     size: winit::dpi::PhysicalSize<u32>,
     surface: wgpu::Surface<'static>,
     surface_format: wgpu::TextureFormat,
@@ -27,12 +31,24 @@ impl State
         let surface = instance.create_surface(window.clone()).unwrap();
         let cap = surface.get_capabilities(&adapter);
         let surface_format = cap.formats[0];
+        let config = SurfaceConfiguration
+        {
+            usage: TextureUsages::RENDER_ATTACHMENT,
+            format: surface_format,
+            width: size.width,
+            height: size.height,
+            present_mode: cap.present_modes[0],
+            desired_maximum_frame_latency: 2,
+            alpha_mode: cap.alpha_modes[0],
+            view_formats: vec![],
+        };
 
         let state = State
         {
             window,
             device,
             queue,
+            config,
             size,
             surface,
             surface_format,
@@ -92,7 +108,7 @@ impl State
         // Renders a GREEN screen
         let mut encoder = self.device.create_command_encoder(&Default::default());
         // Create the renderpass which will clear the screen.
-        let renderpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &texture_view,
@@ -108,10 +124,12 @@ impl State
             occlusion_query_set: None,
         });
 
+        basic_draw_call(&mut render_pass, &create_triangle(&self.device, &self.config));
+
         // If you wanted to call any drawing commands, they would go here.
 
         // End the renderpass.
-        drop(renderpass);
+        drop(render_pass);
 
         // Submit the command in the queue to execute
         self.queue.submit([encoder.finish()]);

@@ -1,19 +1,17 @@
 pub mod instance;
-pub mod buffers;
 pub mod vertex;
 pub mod renderpass;
 pub mod image;
 pub mod surface;
 pub mod swapchain;
-pub mod gfxpipeline;
 pub mod shaderloading;
 pub mod commandbuffer;
 pub mod framebuffer;
 pub mod init;
 pub mod prelude;
-
-
-
+mod shapes;
+mod model;
+mod material;
 //#[cfg(test)]
 //mod tests {
 //    use std::sync::Arc;
