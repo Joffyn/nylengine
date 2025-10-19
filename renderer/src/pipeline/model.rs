@@ -11,6 +11,7 @@ pub struct Model
     material_instance: Arc<MaterialInstance>,
     pub vertex_buffer: Buffer,
     pub index_buffer: Buffer,
+    pub indices_amount: u32,
 }
 
 impl Model
@@ -36,7 +37,8 @@ impl Model
                     contents: bytemuck::cast_slice(indices),
                     usage: BufferUsages::INDEX,
                 }
-            )
+            ),
+            indices_amount: indices.len() as u32,
 
         }
     }

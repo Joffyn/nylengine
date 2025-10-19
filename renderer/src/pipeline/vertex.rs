@@ -25,7 +25,7 @@ impl Vertex for TestVertex
     {
         VertexBufferLayout
         {
-            array_stride: size_of::<Self> as BufferAddress,
+            array_stride: std::mem::size_of::<Self>() as BufferAddress,
             step_mode: VertexStepMode::Vertex,
             attributes: &Self::ATTRIBS,
         }

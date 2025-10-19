@@ -9,7 +9,7 @@ pub fn basic_draw_call(render_pass: &mut RenderPass, model: &Model)
 render_pass.set_pipeline(model.base_pipeline());
 render_pass.set_vertex_buffer(0, model.vertex_buffer.slice(..));
 render_pass.set_index_buffer(model.index_buffer.slice(..), wgpu::IndexFormat::Uint16); // 1.
-render_pass.draw_indexed(0..model.index_buffer.size() as u32, 0, 0..1); // 2.
+render_pass.draw_indexed(0..model.indices_amount, 0, 0..1); // 2.
 }
 
 pub fn main_pass(cmd_encoder: &mut CommandEncoder, texture_view: &TextureView)

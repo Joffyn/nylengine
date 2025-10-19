@@ -40,7 +40,7 @@ impl Material
                     buffers: &[T::desc()], // 2.
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
-                             fragment: Some(wgpu::FragmentState
+                fragment: Some(wgpu::FragmentState
                 { // 3.
                     module: &pixel_shader,
                     entry_point: Some("main"),
