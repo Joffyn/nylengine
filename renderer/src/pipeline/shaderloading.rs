@@ -23,6 +23,6 @@ pub fn compile_shader(shaderkind: ShaderKind, path: &Path) -> Result<Vec<u32>, B
 }
 pub fn load_shader(spirv: Vec<u32>, device: Arc<Device>) -> Result<Arc<ShaderModule>, Validated<VulkanError>>
 {
-    let createinfo = ShaderModuleCreateInfo::new(spirv.as_slice());
-    unsafe { ShaderModule::new(device.clone(), createinfo) }
+    let create_info = ShaderModuleCreateInfo::new(spirv.as_slice());
+    unsafe { ShaderModule::new(device.clone(), create_info) }
 }

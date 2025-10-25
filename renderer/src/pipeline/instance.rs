@@ -7,6 +7,7 @@ use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType};
 use vulkano::swapchain::Surface;
 use std::sync::Arc;
 use once_cell::sync::Lazy;
+use winit::event_loop::EventLoop;
 
 #[allow(dead_code)]
 pub fn create_instance(lib: Arc<VulkanLibrary>) -> Result<Arc<Instance>, Validated<VulkanError>>
@@ -20,7 +21,7 @@ pub fn create_instance(lib: Arc<VulkanLibrary>) -> Result<Arc<Instance>, Validat
     )
 }
 #[allow(unused)]
-pub fn get_default_physical_device(device_extensions: &DeviceExtensions, instance: Arc<Instance>, surface: Arc<Surface>)
+pub fn get_default_physical_device(device_extensions: &DeviceExtensions, instance: Arc<Instance>, event_loop: &EventLoop<()>)
 -> (Arc<PhysicalDevice>, u32)
 {
     instance.clone()
@@ -35,7 +36,7 @@ pub fn get_default_physical_device(device_extensions: &DeviceExtensions, instanc
                     .position(|(i, q)|
                         {
                             q.queue_flags.contains(QueueFlags::GRAPHICS) 
-                                && p.surface_support(i as u32, &surface.clone()).unwrap_or(false)
+                                && p.presentation_support(i as u32, event_loop).unwrap()
                         })
                     .map(|q| (p, q as u32))
             })
