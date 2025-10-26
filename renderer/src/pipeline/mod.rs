@@ -5,4 +5,5 @@ pub mod shaderloading;
 pub mod prelude;
 pub mod app;
 mod material;
-mod mesh;
+mod mesh_data;
+mod model;

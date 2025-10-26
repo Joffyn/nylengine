@@ -6,7 +6,7 @@ use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Sub
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter, StandardMemoryAllocator};
 use crate::pipeline::app::GFX_CONTEXT;
 
-#[derive(BufferContents, Vertex, Debug, Clone, Copy)]
+#[derive(Vertex, Pod, bytemuck::Zeroable, Debug, Clone, Copy)]
 #[repr(C)]
 pub struct TestVertex {
     #[format(R32G32B32_SFLOAT)]

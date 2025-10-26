@@ -20,9 +20,8 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
 use crate::pipeline::instance::{create_instance, get_default_physical_device, get_device, get_queue_family_index};
-use crate::pipeline::mesh::{create_triangle, MeshData};
+use crate::pipeline::model::{create_triangle, draw_all_models};
 use crate::pipeline::swapchain::create_swapchain;
-use crate::pipeline::vertex::TestVertex;
 
 pub struct RenderContext
 {
@@ -104,8 +103,9 @@ impl RenderContext
             device: app.device.clone(),
             queue: app.gfx_queue.clone(),
             std_malloc: app.malloc.clone(),
-            swapchain: swapchain.clone()
+            swapchain: swapchain.clone(),
         });
+        create_triangle();
         RenderContext
         {
             window,
@@ -139,31 +139,6 @@ impl RenderContext
             })
             .unwrap();
     }
-    //fn draw_triangle(&self, builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>)
-    //{
-    //    builder.set_viewport(0, [self.viewport.clone()].into_iter().collect()
-    //        .unwrap()
-    //        .bind_pipeline_graphics(.material.gfxpipeline)
-    //        .unwrap()
-    //        .bind_vertex_buffers(0, ().vertex_buffer))
-    //        .unwrap();
-
-    //    unsafe { builder.draw(
-    //        self.triangle.unwrap().vertex_buffer.deref().len() as u32,
-    //        1,
-    //        0,
-    //        0)};
-    //}
-    //fn end_main_pass(builder: AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>)
-    //-> Arc<PrimaryAutoCommandBuffer>
-    //{
-    //    builder
-    //        .end_rendering()
-    //        .unwrap()
-    //        .build()
-    //        .unwrap()
-
-    //}
     fn end_frame(
         &mut self,
         command_buffer: Arc<PrimaryAutoCommandBuffer>,
@@ -228,7 +203,8 @@ pub struct GfxContext
     pub device: Arc<Device>,
     pub queue: Arc<Queue>,
     pub std_malloc: Arc<StandardMemoryAllocator>,
-    pub swapchain: Arc<Swapchain>
+    pub swapchain: Arc<Swapchain>,
+
 }
 pub static GFX_CONTEXT: Lazy<RwLock<Option<GfxContext>>> = Lazy::new(|| RwLock::new(None));
 impl App
@@ -246,12 +222,6 @@ impl App
         };
 
         let (phys_device, qfp) = get_default_physical_device(&device_extensions, instance.clone(), &event_loop);
-
-        //println!("Version: {}, 1.3: {}", phys_device.api_version(), Version::V1_3);
-        //if phys_device.api_version().minor <= Version::V1_3.minor
-        //{
-        //    println!("Set dynamic rendering to true");
-        //}
 
         let qfi = get_queue_family_index(phys_device.clone()).unwrap_or(4) as u32;
         let (device, mut gfx_queue) = get_device(&device_extensions, phys_device.clone(), qfi).unwrap();
@@ -321,25 +291,11 @@ impl ApplicationHandler for App
                         self.gfx_queue.queue_family_index(),
                         CommandBufferUsage::OneTimeSubmit,
                     ).unwrap();
-
-                    //let image_view = rcx.attachment_image_views[image_index as usize].clone();
-
-                    //builder
-                    //    .begin_rendering( RenderingInfo
-                    //    {
-                    //        color_attachments: vec![Some(RenderingAttachmentInfo
-                    //        {
-                    //            image_layout: ImageLayout::ColorAttachmentOptimal,
-                    //            resolve_info: None,
-                    //            load_op: AttachmentLoadOp::Clear,
-                    //            store_op: AttachmentStoreOp::Store,
-                    //            clear_value: Some([0.0, 0.0, 1.0, 1.0].into()),
-                    //            ..RenderingAttachmentInfo::image_view(image_view)
-                    //        })],
-                    //        ..RenderingInfo::default()
-                    //    })
-                    //    .unwrap();
                     rcx.begin_rendering_main_pass(&mut builder, image_index);
+                    //Draw here
+                    draw_all_models(&mut builder);
+
+
 
                     builder
                         .end_rendering()
@@ -348,9 +304,6 @@ impl ApplicationHandler for App
                         .build()
                         .unwrap();
                     rcx.end_frame(command_buffer, acquire_future, image_index, self.gfx_queue.clone(), self.device.clone());
-                    //self.begin_rendering_main_pass(&mut builder, image_index);
-                    //self.draw_triangle(&mut builder);
-                    //self.end_main_pass(&mut builder, acquire_future, image_index);
                 },
             _ => (),
         }
@@ -385,9 +338,7 @@ fn check_swapchain(rcx: &mut RenderContext, window_size: &PhysicalSize<u32>) -> 
         // Now that we have new swapchain images, we must create new image views from
         // them as well.
         rcx.attachment_image_views = window_size_dependent_setup(&new_images);
-
         rcx.viewport.extent = [window_size.width as f32, window_size.height as f32];
-
         rcx.recreate_swapchain = false;
     }
 
