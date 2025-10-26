@@ -1,6 +1,6 @@
-use vulkano::VulkanLibrary;
-use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo};
-use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, Queue, QueueCreateInfo, QueueFlags};
+use vulkano::{Version, VulkanLibrary};
+use vulkano::instance::{Instance, InstanceCreateFlags, InstanceCreateInfo, InstanceExtensions};
+use vulkano::device::{Device, DeviceCreateInfo, DeviceExtensions, DeviceFeatures, Queue, QueueCreateInfo, QueueFlags};
 use vulkano::VulkanError;
 use vulkano::Validated;
 use vulkano::device::physical::{PhysicalDevice, PhysicalDeviceType};
@@ -10,12 +10,13 @@ use once_cell::sync::Lazy;
 use winit::event_loop::EventLoop;
 
 #[allow(dead_code)]
-pub fn create_instance(lib: Arc<VulkanLibrary>) -> Result<Arc<Instance>, Validated<VulkanError>>
+pub fn create_instance(lib: Arc<VulkanLibrary>, extensions: InstanceExtensions) -> Result<Arc<Instance>, Validated<VulkanError>>
 {
     Instance::new(
         lib,
         InstanceCreateInfo {
             flags: InstanceCreateFlags::ENUMERATE_PORTABILITY,
+            enabled_extensions: extensions,
             ..Default::default()
         },
     )
@@ -27,6 +28,7 @@ pub fn get_default_physical_device(device_extensions: &DeviceExtensions, instanc
     instance.clone()
         .enumerate_physical_devices()
         .expect("Could not enumerate devices")
+        .filter(|p| p.api_version() >= Version::V1_3 || p.supported_extensions().khr_dynamic_rendering)
         .filter(|p| p.supported_extensions().contains(&device_extensions))
         .filter_map(|p| 
             {
@@ -73,7 +75,13 @@ pub fn get_device(device_extensions: &DeviceExtensions, phys_device: Arc<Physica
                 {
                     queue_family_index: qfi, ..Default::default()
                 }], 
-            enabled_extensions: *device_extensions , ..Default::default()
+            enabled_extensions: *device_extensions,
+            enabled_features: DeviceFeatures
+            {
+                dynamic_rendering: true,
+                ..Default::default()
+            },
+            ..Default::default()
         },
     )
 }

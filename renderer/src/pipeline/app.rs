@@ -9,7 +9,7 @@ use vulkano::image::view::ImageView;
 use vulkano::instance::Instance;
 use vulkano::pipeline::graphics::viewport::Viewport;
 use vulkano::swapchain::{acquire_next_image, Surface, Swapchain, SwapchainAcquireFuture, SwapchainCreateInfo, SwapchainPresentInfo};
-use vulkano::{sync, Validated, VulkanError, VulkanLibrary};
+use vulkano::{sync, Validated, Version, VulkanError, VulkanLibrary};
 use vulkano::command_buffer::{AutoCommandBufferBuilder, CommandBufferUsage, PrimaryAutoCommandBuffer, RenderingAttachmentInfo, RenderingInfo};
 use vulkano::memory::allocator::StandardMemoryAllocator;
 use vulkano::render_pass::{AttachmentLoadOp, AttachmentStoreOp, Framebuffer};
@@ -133,9 +133,9 @@ impl RenderContext
                     load_op: AttachmentLoadOp::Clear,
                     store_op: AttachmentStoreOp::Store,
                     clear_value: Some([0.0, 0.0, 1.0, 1.0].into()),
-                    ..RenderingAttachmentInfo::image_view(image_view)
+                    ..RenderingAttachmentInfo::image_view(image_view).clone()
                 })],
-                ..RenderingInfo::default()
+                ..Default::default()
             })
             .unwrap();
     }
@@ -236,13 +236,23 @@ impl App
     pub(crate) fn new(event_loop: &EventLoop<()>) -> Self
     {
         let lib = VulkanLibrary::new().unwrap();
-        let instance = create_instance(lib).unwrap();
+        let extensions = Surface::required_extensions(&event_loop).unwrap();
+        let instance = create_instance(lib, extensions).unwrap();
         let device_extensions = DeviceExtensions {
             khr_swapchain: true,
+            khr_dynamic_rendering: true,
+
             ..DeviceExtensions::empty()
         };
 
         let (phys_device, qfp) = get_default_physical_device(&device_extensions, instance.clone(), &event_loop);
+
+        //println!("Version: {}, 1.3: {}", phys_device.api_version(), Version::V1_3);
+        //if phys_device.api_version().minor <= Version::V1_3.minor
+        //{
+        //    println!("Set dynamic rendering to true");
+        //}
+
         let qfi = get_queue_family_index(phys_device.clone()).unwrap_or(4) as u32;
         let (device, mut gfx_queue) = get_device(&device_extensions, phys_device.clone(), qfi).unwrap();
         let mut gfx_queue = gfx_queue.next().unwrap();
