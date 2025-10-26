@@ -1,13 +1,8 @@
 pub mod instance;
 pub mod vertex;
-pub mod renderpass;
-pub mod image;
-pub mod surface;
 pub mod swapchain;
-pub mod gfxpipeline;
 pub mod shaderloading;
-pub mod init;
 pub mod prelude;
-mod app;
+pub mod app;
 mod material;
-mod model;
+mod mesh;

@@ -2,14 +2,19 @@
 #![feature(slice_pattern)]
 extern crate core;
 
-use renderer::pipeline::window::create_default_window;
+use winit::event_loop::EventLoop;
+use crate::pipeline::app::App;
 
 pub mod pipeline;
 
-use crate::pipeline::window;
 
 
-fn main() {
+fn main()
+{
+    let event_loop = EventLoop::new().unwrap();
+    let mut app = App::new(&event_loop);
+
+    event_loop.run_app(&mut app);
 
 }
 

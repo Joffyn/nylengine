@@ -1,5 +1,7 @@
+use crate::pipeline::swapchain;
 use std::ops::Deref;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
+use once_cell::sync::Lazy;
 use vulkano::command_buffer::allocator::{StandardCommandBufferAllocator, StandardCommandBufferAllocatorCreateInfo};
 use vulkano::device::{Device, DeviceExtensions, Queue};
 use vulkano::image::{Image, ImageLayout};
@@ -17,9 +19,9 @@ use winit::dpi::PhysicalSize;
 use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, EventLoop};
 use winit::window::{Window, WindowId};
-use crate::pipeline::gfxpipeline::Material;
 use crate::pipeline::instance::{create_instance, get_default_physical_device, get_device, get_queue_family_index};
-use crate::pipeline::model::{create_triangle, Model};
+use crate::pipeline::mesh::{create_triangle, MeshData};
+use crate::pipeline::swapchain::create_swapchain;
 use crate::pipeline::vertex::TestVertex;
 
 pub struct RenderContext
@@ -58,7 +60,7 @@ impl RenderContext
         // Before we can draw on the surface, we have to create what is called a swapchain.
         // Creating a swapchain allocates the color buffers that will contain the image that will
         // ultimately be visible on the screen. These images are returned alongside the swapchain.
-        let (swapchain, images) = renderer::pipeline::swapchain::create_swapchain(
+        let (swapchain, images) = create_swapchain(
             app.device.physical_device().clone(),
             app.device.clone(),
             window.clone(),
@@ -97,6 +99,13 @@ impl RenderContext
         // avoid that, we store the submission of the previous frame here.
         let previous_frame_end = Some(sync::now(app.device.clone()).boxed());
 
+        *GFX_CONTEXT.write().unwrap() = Some(GfxContext
+        {
+            device: app.device.clone(),
+            queue: app.gfx_queue.clone(),
+            std_malloc: app.malloc.clone(),
+            swapchain: swapchain.clone()
+        });
         RenderContext
         {
             window,
@@ -108,6 +117,102 @@ impl RenderContext
             previous_frame_end,
         }
     }
+
+
+    fn begin_rendering_main_pass(&mut self, builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>, image_index: u32)
+    {
+        let image_view = self.attachment_image_views[image_index as usize].clone();
+
+        builder
+            .begin_rendering( RenderingInfo
+            {
+                color_attachments: vec![Some(RenderingAttachmentInfo
+                {
+                    image_layout: ImageLayout::ColorAttachmentOptimal,
+                    resolve_info: None,
+                    load_op: AttachmentLoadOp::Clear,
+                    store_op: AttachmentStoreOp::Store,
+                    clear_value: Some([0.0, 0.0, 1.0, 1.0].into()),
+                    ..RenderingAttachmentInfo::image_view(image_view)
+                })],
+                ..RenderingInfo::default()
+            })
+            .unwrap();
+    }
+    //fn draw_triangle(&self, builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>)
+    //{
+    //    builder.set_viewport(0, [self.viewport.clone()].into_iter().collect()
+    //        .unwrap()
+    //        .bind_pipeline_graphics(.material.gfxpipeline)
+    //        .unwrap()
+    //        .bind_vertex_buffers(0, ().vertex_buffer))
+    //        .unwrap();
+
+    //    unsafe { builder.draw(
+    //        self.triangle.unwrap().vertex_buffer.deref().len() as u32,
+    //        1,
+    //        0,
+    //        0)};
+    //}
+    //fn end_main_pass(builder: AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>)
+    //-> Arc<PrimaryAutoCommandBuffer>
+    //{
+    //    builder
+    //        .end_rendering()
+    //        .unwrap()
+    //        .build()
+    //        .unwrap()
+
+    //}
+    fn end_frame(
+        &mut self,
+        command_buffer: Arc<PrimaryAutoCommandBuffer>,
+        acquire_future: SwapchainAcquireFuture,
+        image_index: u32,
+        gfx_queue: Arc<Queue>,
+        device: Arc<Device>)
+    {
+
+        let future = self.previous_frame_end
+            .take()
+            .unwrap()
+            .join(acquire_future)
+            .then_execute(gfx_queue.clone(), command_buffer.clone())
+            .unwrap()
+            // The color output is now expected to contain our triangle. But in order to
+            // show it on the screen, we have to *present* the image by calling
+            // `then_swapchain_present`.
+            //
+            // This function does not actually present the image immediately. Instead it
+            // submits a present command at the end of the queue. This means that it will
+            // only be presented once the GPU has finished executing the command buffer
+            // that draws the triangle.
+            .then_swapchain_present(
+                gfx_queue.clone(),
+                SwapchainPresentInfo
+                {
+                    present_id: None,
+                    present_mode: None,
+                    present_region: vec![],
+                    ..SwapchainPresentInfo::swapchain_image_index(self.swapchain.clone(), image_index)
+                },
+            )
+            .then_signal_fence_and_flush();
+
+        match future.map_err(Validated::unwrap) {
+            Ok(future) => {
+                self.previous_frame_end = Some(future.boxed());
+            }
+            Err(VulkanError::OutOfDate) => {
+                self.recreate_swapchain = true;
+                self.previous_frame_end = Some(sync::now(device.clone()).boxed());
+            }
+            Err(e) => {
+                println!("failed to flush future: {e}");
+                self.previous_frame_end = Some(sync::now(device.clone()).boxed());
+            }
+        }
+    }
 }
 pub struct App
 {
@@ -117,12 +222,18 @@ pub struct App
     pub cmd_buffer_allocator: Arc<StandardCommandBufferAllocator>,
     pub malloc: Arc<StandardMemoryAllocator>,
     pub rcx: Option<RenderContext>,
-    triangle: Option<Model<TestVertex>>,
-
 }
+pub struct GfxContext
+{
+    pub device: Arc<Device>,
+    pub queue: Arc<Queue>,
+    pub std_malloc: Arc<StandardMemoryAllocator>,
+    pub swapchain: Arc<Swapchain>
+}
+pub static GFX_CONTEXT: Lazy<RwLock<Option<GfxContext>>> = Lazy::new(|| RwLock::new(None));
 impl App
 {
-    fn new(event_loop: &EventLoop<()>) -> Self
+    pub(crate) fn new(event_loop: &EventLoop<()>) -> Self
     {
         let lib = VulkanLibrary::new().unwrap();
         let instance = create_instance(lib).unwrap();
@@ -149,95 +260,8 @@ impl App
             cmd_buffer_allocator,
             malloc,
             rcx: None,
-            triangle: None
         }
 
-    }
-
-    fn begin_rendering_main_pass(&self, builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>, image_index: u32)
-    {
-        builder
-            .begin_rendering( RenderingInfo
-            {
-                color_attachments: vec![Some(RenderingAttachmentInfo
-                {
-                    image_view: Self.rcx.unwrap().attachment_image_views.clone()[image_index],
-                    image_layout: ImageLayout::ColorAttachmentOptimal,
-                    resolve_info: None,
-                    load_op: AttachmentLoadOp::Clear,
-                    store_op: AttachmentStoreOp::Store,
-                    clear_value: Some([0.0, 0.0, 1.0, 1.0].into()),
-                    _ne: vulkano::NonExhaustive(()),
-                })],
-                ..RenderingInfo::default()
-            })
-            .unwrap();
-    }
-    fn draw_triangle(&self, builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>)
-    {
-        builder.set_viewport(0, [Self.rcx.unwrap().viewport.clone()].into_iter().collect()
-            .unwrap()
-            .bind_pipeline_graphics(self.triangle.unwrap().material.gfxpipeline)
-            .unwrap()
-            .bind_vertex_buffers(0, self.triangle.unwrap().vertex_buffer))
-            .unwrap();
-
-        unsafe { builder.draw(
-            self.triangle.unwrap().vertex_buffer.deref().len() as u32,
-            1,
-            0,
-            0)};
-    }
-    fn end_main_pass(&self, builder: &mut AutoCommandBufferBuilder<PrimaryAutoCommandBuffer>, acquire_future: SwapchainAcquireFuture, image_index: u32)
-    {
-        builder
-            .end_rendering()
-            .unwrap();
-
-        let command_buffer = builder.build().unwrap();
-        let future = self.rcx
-            .unwrap()
-            .previous_frame_end
-            .take()
-            .unwrap()
-            .join(acquire_future)
-            .then_execute(self.gfx_queue.clone(), command_buffer)
-            .unwrap()
-            // The color output is now expected to contain our triangle. But in order to
-            // show it on the screen, we have to *present* the image by calling
-            // `then_swapchain_present`.
-            //
-            // This function does not actually present the image immediately. Instead it
-            // submits a present command at the end of the queue. This means that it will
-            // only be presented once the GPU has finished executing the command buffer
-            // that draws the triangle.
-            .then_swapchain_present(
-                self.gfx_queue.clone(),
-                SwapchainPresentInfo
-                {
-                    swapchain: self.rcx.unwrap().swapchain,
-                    image_index,
-                    present_id: None,
-                    present_mode: None,
-                    present_region: vec![],
-                    _ne: vulkano::NonExhaustive(()),
-                },
-            )
-            .then_signal_fence_and_flush();
-
-        match future.map_err(Validated::unwrap) {
-            Ok(future) => {
-                self.rcx.unwrap().previous_frame_end = Some(future.boxed());
-            }
-            Err(VulkanError::OutOfDate) => {
-                self.rcx.unwrap().recreate_swapchain = true;
-                self.rcx.unwrap().previous_frame_end = Some(sync::now(self.device.clone()).boxed());
-            }
-            Err(e) => {
-                println!("failed to flush future: {e}");
-                self.rcx.unwrap().previous_frame_end = Some(sync::now(self.device.clone()).boxed());
-            }
-        }
     }
 }
 
@@ -246,7 +270,6 @@ impl ApplicationHandler for App
     fn resumed(&mut self, event_loop: &ActiveEventLoop)
     {
         self.rcx = Some(RenderContext::new(&self, event_loop));
-        self.triangle = Some(create_triangle(&self));
     }
     fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop)
     {
@@ -255,16 +278,17 @@ impl ApplicationHandler for App
     }
     fn window_event(&mut self, event_loop: &ActiveEventLoop, id: WindowId, event: WindowEvent)
     {
+        let rcx = self.rcx.as_mut().unwrap();
         match event
         {
             WindowEvent::Resized(_) =>
                 {
-                    self.rcx.unwrap().recreate_swapchain = true;
+                    rcx.recreate_swapchain = true;
                 }
             WindowEvent::CloseRequested => { println!("Window closing!"); event_loop.exit(); },
             WindowEvent::RedrawRequested =>
                 {
-                    let window_size = self.rcx.unwrap().window.inner_size();
+                    let window_size = rcx.window.inner_size();
 
                     // Do not draw the frame when the screen size is zero. On Windows, this can occur
                     // when minimizing the application.
@@ -272,25 +296,51 @@ impl ApplicationHandler for App
                         return;
                     }
 
-                    let mut rcx = self.rcx.unwrap();
                     // It is important to call this function from time to time, otherwise resources
                     // will keep accumulating and you will eventually reach an out of memory error.
                     // Calling this function polls various fences in order to determine what the GPU
                     // has already processed, and frees the resources that are no longer needed.
                     rcx.previous_frame_end.as_mut().unwrap().cleanup_finished();
-                    let (image_index, acquire_future) = match check_swapchain(&mut rcx, &window_size)
+                    let (image_index, acquire_future) = match check_swapchain(rcx, &window_size)
                     {
-                        Ok((i, a)) => (i, a),
-                        Err(e) => return,
+                        Some((i, a)) => (i, a),
+                        _ => return,
                     };
                     let mut builder = AutoCommandBufferBuilder::primary(
                         self.cmd_buffer_allocator.clone(),
                         self.gfx_queue.queue_family_index(),
                         CommandBufferUsage::OneTimeSubmit,
                     ).unwrap();
-                    self.begin_rendering_main_pass(&mut builder, image_index);
-                    self.draw_triangle(&mut builder);
-                    self.end_main_pass(&mut builder, acquire_future, image_index);
+
+                    //let image_view = rcx.attachment_image_views[image_index as usize].clone();
+
+                    //builder
+                    //    .begin_rendering( RenderingInfo
+                    //    {
+                    //        color_attachments: vec![Some(RenderingAttachmentInfo
+                    //        {
+                    //            image_layout: ImageLayout::ColorAttachmentOptimal,
+                    //            resolve_info: None,
+                    //            load_op: AttachmentLoadOp::Clear,
+                    //            store_op: AttachmentStoreOp::Store,
+                    //            clear_value: Some([0.0, 0.0, 1.0, 1.0].into()),
+                    //            ..RenderingAttachmentInfo::image_view(image_view)
+                    //        })],
+                    //        ..RenderingInfo::default()
+                    //    })
+                    //    .unwrap();
+                    rcx.begin_rendering_main_pass(&mut builder, image_index);
+
+                    builder
+                        .end_rendering()
+                        .unwrap();
+                    let command_buffer = builder
+                        .build()
+                        .unwrap();
+                    rcx.end_frame(command_buffer, acquire_future, image_index, self.gfx_queue.clone(), self.device.clone());
+                    //self.begin_rendering_main_pass(&mut builder, image_index);
+                    //self.draw_triangle(&mut builder);
+                    //self.end_main_pass(&mut builder, acquire_future, image_index);
                 },
             _ => (),
         }
@@ -315,7 +365,7 @@ fn check_swapchain(rcx: &mut RenderContext, window_size: &PhysicalSize<u32>) -> 
         let (new_swapchain, new_images) = rcx
             .swapchain
             .recreate(SwapchainCreateInfo {
-                image_extent: window_size.into(),
+                image_extent: [window_size.width, window_size.height],
                 ..rcx.swapchain.create_info()
             })
             .expect("failed to recreate swapchain");
@@ -326,7 +376,7 @@ fn check_swapchain(rcx: &mut RenderContext, window_size: &PhysicalSize<u32>) -> 
         // them as well.
         rcx.attachment_image_views = window_size_dependent_setup(&new_images);
 
-        rcx.viewport.extent = window_size.into();
+        rcx.viewport.extent = [window_size.width as f32, window_size.height as f32];
 
         rcx.recreate_swapchain = false;
     }

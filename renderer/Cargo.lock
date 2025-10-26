@@ -1143,6 +1143,8 @@ name = "renderer"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bytemuck",
+ "foldhash",
  "once_cell",
  "rand",
  "shaderc",

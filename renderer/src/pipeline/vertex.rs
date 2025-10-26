@@ -1,38 +1,38 @@
-use std::iter::TrustedRandomAccessNoCoerce;
 use std::ops::Deref;
 use std::sync::Arc;
+use bytemuck::Pod;
 use vulkano::pipeline::graphics::vertex_input::Vertex;
 use vulkano::buffer::{Buffer, BufferContents, BufferCreateInfo, BufferUsage, Subbuffer};
 use vulkano::memory::allocator::{AllocationCreateInfo, MemoryTypeFilter, StandardMemoryAllocator};
+use crate::pipeline::app::GFX_CONTEXT;
 
 #[derive(BufferContents, Vertex, Debug, Clone, Copy)]
 #[repr(C)]
 pub struct TestVertex {
-    #[format(R32B32G32_SFLOAT)]
+    #[format(R32G32B32_SFLOAT)]
     pub pos: [f32; 3],
-    #[format(R32B32G32_SFLOAT)]
+    #[format(R32G32B32_SFLOAT)]
     pub color: [f32; 3],
 }
 
 pub struct IndexBuffer
 {
     inner: Subbuffer<[u16]>,
-    amount: u32,
 }
 impl IndexBuffer
 {
-    pub fn new(malloc: Arc<StandardMemoryAllocator>, indices: &[u16]) -> IndexBuffer
+    pub fn new(indices: Vec<u16>) -> IndexBuffer
     {
-
+        let gfx = GFX_CONTEXT.read().unwrap();
+        let gfx = gfx.as_ref().unwrap();
         IndexBuffer
         {
             inner: Buffer::from_iter(
-                malloc.clone(),
+                 gfx.std_malloc.clone(),
                 BufferCreateInfo { usage: BufferUsage::INDEX_BUFFER, ..Default::default()},
                 AllocationCreateInfo { memory_type_filter: MemoryTypeFilter::PREFER_DEVICE | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                     ..Default::default() },
-                *indices).expect("Couldn't create vertex buffer"),
-            amount: indices.iter().size() as u32
+                indices).expect("Couldn't create vertex buffer"),
         }
     }
 }
@@ -41,19 +41,22 @@ impl Deref for IndexBuffer
     type Target = Subbuffer<[u16]>;
     fn deref(&self) -> &Self::Target { &self.inner }
 }
-pub struct VertexBuffer<T>
-where T: Vertex
+
+
+pub struct VertexBuffer
 {
-    inner: Subbuffer<[T]>
+    inner: Subbuffer<[TestVertex]>
 }
-impl<T> VertexBuffer<T>
+impl VertexBuffer
 {
-    pub fn new(malloc: Arc<StandardMemoryAllocator>, verts: &Vec<T>) -> VertexBuffer<T>
+    pub fn new(verts: Vec<TestVertex>) -> VertexBuffer
     {
+        let gfx = GFX_CONTEXT.read().unwrap();
+        let gfx = gfx.as_ref().unwrap();
         VertexBuffer
         {
             inner: Buffer::from_iter(
-                malloc.clone(),
+                gfx.std_malloc.clone(),
                 BufferCreateInfo { usage: BufferUsage::VERTEX_BUFFER, ..Default::default()},
                 AllocationCreateInfo { memory_type_filter: MemoryTypeFilter::PREFER_DEVICE | MemoryTypeFilter::HOST_SEQUENTIAL_WRITE,
                     ..Default::default() },
@@ -62,10 +65,9 @@ impl<T> VertexBuffer<T>
     }
 
 }
-impl<T> Deref for VertexBuffer<T>
+impl Deref for VertexBuffer
 {
-    type Target = T;
-
+    type Target = Subbuffer<[TestVertex]>;
     fn deref(&self) -> &Self::Target { &self.inner }
 }
 

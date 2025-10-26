@@ -7,19 +7,19 @@ use vulkano::pipeline::graphics::viewport::*;
 use vulkano::pipeline::graphics::input_assembly::*;
 use vulkano::pipeline::graphics::vertex_input::*;
 use vulkano::pipeline::layout::*;
+use vulkano::pipeline::DynamicState;
 use vulkano::pipeline::*;
-use vulkano::render_pass::*;
 use vulkano::device::*;
 use vulkano::shader::*;
 use vulkano::*;
 use std::sync::*;
 
 use std::fmt::Display;
-use vulkano::pipeline::DynamicState::Viewport;
+use std::hash::RandomState;
+use foldhash::HashSetExt;
 use vulkano::pipeline::graphics::subpass::PipelineRenderingCreateInfo;
-use winit::window::CursorIcon::Default;
-use crate::pipeline::app::{App, RenderContext};
-//use crate::pipeline::prelude::RendererError::VulkanError;
+use crate::pipeline::app::{App, RenderContext, GFX_CONTEXT};
+use crate::pipeline::vertex::TestVertex;
 
 pub struct Material
 {
@@ -28,43 +28,43 @@ pub struct Material
 impl Material
 {
     //Proper error handling needd
-    pub fn new<T>(
+    pub fn new(
         vertex_shader: &Arc<ShaderModule>,
-        fragment_shader: &Arc<ShaderModule>,
-        app: &App) -> Result<Material, Validated<VulkanError>>
-    where T : Vertex,
+        fragment_shader: &Arc<ShaderModule>)
+        -> Result<Material, Validated<VulkanError>>
     {
         let vs_entry = vertex_shader.entry_point("main").unwrap();
         let fs_entry = fragment_shader.entry_point("main").unwrap();
 
-        let rcx: &RenderContext = match app.rcx
-        {
-            Ok(rcx) => rcx,
-            Err(e) => return e,
-        };
-
         let vertex_input_state =
-            T::per_vertex()
+            TestVertex::per_vertex()
                 .definition(&vs_entry)?;
 
         let stages = [PipelineShaderStageCreateInfo::new(vs_entry), PipelineShaderStageCreateInfo::new(fs_entry)];
 
+        let gfx = GFX_CONTEXT.read().unwrap();
+        let gfx = gfx.as_ref().unwrap();
+
         let layout = PipelineLayout::new(
-            app.device.clone(),
+            gfx.device.clone(),
             PipelineDescriptorSetLayoutCreateInfo::from_stages(&stages)
-                .into_pipeline_layout_create_info(app.device.clone()).unwrap())?;
+                .into_pipeline_layout_create_info(gfx.device.clone()).unwrap())?;
 
 
         let subpass = PipelineRenderingCreateInfo
         {
-            color_attachment_formats: [Some(rcx.swapchain.image_format())].to_vec(),
+            color_attachment_formats: [Some(gfx.swapchain.image_format())].to_vec(),
             ..PipelineRenderingCreateInfo::default()
         };
+
+        use foldhash::HashSet;
+        let mut dynamic_state: HashSet<DynamicState> = HashSet::new();
+        dynamic_state.insert(DynamicState::Viewport);
 
         Ok(Self
         {
             gfxpipeline: GraphicsPipeline::new(
-                app.device.clone(),
+                gfx.device.clone(),
                 None,
                 GraphicsPipelineCreateInfo
                 {
@@ -78,7 +78,7 @@ impl Material
                         subpass.color_attachment_formats.len() as u32,
                         ColorBlendAttachmentState::default(),
                     )),
-                    dynamic_state: &[DynamicState::Viewport],
+                    dynamic_state,
                     subpass: Some(subpass.into()),
                     ..GraphicsPipelineCreateInfo::layout(layout)
 
